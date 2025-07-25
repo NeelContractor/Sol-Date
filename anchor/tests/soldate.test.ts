@@ -174,8 +174,20 @@ describe('Soldate', () => {
   })
 
   it('create match', async () => {
-    const user1profile = await program.account.userProfile.fetch(user1.publicKey);
-    const user2profile = await program.account.userProfile.fetch(user2.publicKey);
+    const [user1ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user1.publicKey.toBuffer()],
+      program.programId
+    );
+  
+    const [user2ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user2.publicKey.toBuffer()],
+      program.programId
+    );
+  
+    // Fetch the profiles using the correct PDAs
+    const user1profile = await program.account.userProfile.fetch(user1ProfilePda);
+    const user2profile = await program.account.userProfile.fetch(user2ProfilePda);
+  
 
     const [matchPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("match"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
@@ -190,14 +202,14 @@ describe('Soldate', () => {
         systemProgram: SystemProgram.programId,
       })
       .signers([user1])
-      .rpc()
+      .rpc({ skipPreflight: true })
 
     const match = await program.account.match.fetch(matchPda);
     console.log("match like: ", match);
   })
 
   it('send message', async () => {
-    const content = "Hey, there i am new here. This is good platform. isn't it?"
+    const content = "Hey, there. i am new here. This is good platform. isn't it?"
 
     const [matchPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("match"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
@@ -209,9 +221,10 @@ describe('Soldate', () => {
       .accountsStrict({
         sender: user1.publicKey,
         matchAccount: matchPda,
+        systemProgram: SystemProgram.programId
       })
       .signers([user1])
-      .rpc()
+      .rpc({ skipPreflight: true })
 
     const message = await program.account.match.fetch(matchPda);
     console.log("message: ", message);

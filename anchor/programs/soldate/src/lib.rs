@@ -44,6 +44,7 @@ pub mod soldate {
         }
         
         if let Some(new_age) = age {
+            require!(new_age >= 18, SolDateError::AgeTooYoung);
             profile.age = new_age;
         }
 
@@ -102,6 +103,7 @@ pub mod soldate {
         block.blocker = ctx.accounts.blocker.key();
         block.blocked = blocked_user;
         block.timestamp = Clock::get()?.unix_timestamp;
+        block.bump = ctx.bumps.block;
         Ok(())
     }
 }
@@ -147,7 +149,7 @@ pub struct SendLike<'info> {
         init,
         payer = sender,
         space = 8 + Like::INIT_SPACE,
-        seeds = [b"like", sender.key().as_ref(), &timestamp.to_le_bytes().as_ref()],
+        seeds = [b"like", sender.key().as_ref(), timestamp.to_le_bytes().as_ref()],
         bump
     )]
     pub like: Account<'info, Like>,
@@ -172,6 +174,7 @@ pub struct CreateMatch<'info> {
 
 #[derive(Accounts)]
 pub struct SendMessage<'info> {
+    #[account(mut)]
     pub sender: Signer<'info>,
     #[account(
         mut,
@@ -179,6 +182,7 @@ pub struct SendMessage<'info> {
         bump = match_account.bump
     )]
     pub match_account: Account<'info, Match>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -206,7 +210,7 @@ pub struct UserProfile {
     pub age: u8,
     #[max_len(100)]
     pub bio: String,
-    #[max_len(5; 16)]
+    #[max_len(5, 16)]
     pub interests: Vec<String>,
     #[max_len(32)]
     pub location: String,
@@ -240,8 +244,9 @@ pub struct Match {
 }
 
 // Probably won't use Message struct/ might just use db for this
-#[account]
-#[derive(InitSpace)]
+// #[account]
+// #[derive(InitSpace)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
 pub struct Message {
     pub sender: Pubkey,
     #[max_len(200)]
@@ -255,7 +260,8 @@ pub struct Message {
 pub struct BlockedUser {
     pub blocker: Pubkey,
     pub blocked: Pubkey,
-    pub timestamp: i64
+    pub timestamp: i64,
+    pub bump: u8
 }
 
 #[error_code]

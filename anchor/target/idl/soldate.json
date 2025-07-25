@@ -1,0 +1,648 @@
+{
+  "address": "yeyAtDe631iSoW5CYpb7tiGjiAtmNGk8eWnw4R2ZbU7",
+  "metadata": {
+    "name": "soldate",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "block_user",
+      "discriminator": [
+        10,
+        164,
+        178,
+        6,
+        231,
+        175,
+        185,
+        191
+      ],
+      "accounts": [
+        {
+          "name": "blocker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "block",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  108,
+                  111,
+                  99,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "blocker"
+              },
+              {
+                "kind": "arg",
+                "path": "blocked_user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "blocked_user",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "create_match",
+      "discriminator": [
+        107,
+        2,
+        184,
+        145,
+        70,
+        142,
+        17,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "match_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "user1"
+              },
+              {
+                "kind": "arg",
+                "path": "user2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "user1",
+          "type": "pubkey"
+        },
+        {
+          "name": "user2",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "create_profile",
+      "discriminator": [
+        225,
+        205,
+        234,
+        143,
+        17,
+        186,
+        50,
+        220
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "age",
+          "type": "u8"
+        },
+        {
+          "name": "bio",
+          "type": "string"
+        },
+        {
+          "name": "interests",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
+          "name": "location",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "send_like",
+      "discriminator": [
+        72,
+        156,
+        138,
+        218,
+        124,
+        229,
+        126,
+        12
+      ],
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "like",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  107,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "sender"
+              },
+              {
+                "kind": "arg",
+                "path": "timestamp"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "target_user",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "send_message",
+      "discriminator": [
+        57,
+        40,
+        34,
+        178,
+        189,
+        10,
+        65,
+        26
+      ],
+      "accounts": [
+        {
+          "name": "sender",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "match_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "match_account.user1",
+                "account": "Match"
+              },
+              {
+                "kind": "account",
+                "path": "match_account.user2",
+                "account": "Match"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "content",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "update_profile",
+      "discriminator": [
+        98,
+        67,
+        99,
+        206,
+        86,
+        115,
+        175,
+        1
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "age",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "bio",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "interests",
+          "type": {
+            "option": {
+              "vec": "string"
+            }
+          }
+        },
+        {
+          "name": "location",
+          "type": {
+            "option": "string"
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "BlockedUser",
+      "discriminator": [
+        213,
+        76,
+        73,
+        104,
+        254,
+        169,
+        234,
+        232
+      ]
+    },
+    {
+      "name": "Like",
+      "discriminator": [
+        10,
+        133,
+        129,
+        201,
+        87,
+        218,
+        203,
+        222
+      ]
+    },
+    {
+      "name": "Match",
+      "discriminator": [
+        236,
+        63,
+        169,
+        38,
+        15,
+        56,
+        196,
+        162
+      ]
+    },
+    {
+      "name": "UserProfile",
+      "discriminator": [
+        32,
+        37,
+        119,
+        205,
+        179,
+        180,
+        13,
+        194
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access"
+    },
+    {
+      "code": 6001,
+      "name": "NameTooLong",
+      "msg": "Name is too long"
+    },
+    {
+      "code": 6002,
+      "name": "AgeTooYoung",
+      "msg": "User must be at least 18 years old"
+    },
+    {
+      "code": 6003,
+      "name": "BioTooLong",
+      "msg": "Bio is too long"
+    },
+    {
+      "code": 6004,
+      "name": "MessageTooLong",
+      "msg": "Message is too long"
+    },
+    {
+      "code": 6005,
+      "name": "MatchNotActive",
+      "msg": "Match not active"
+    }
+  ],
+  "types": [
+    {
+      "name": "BlockedUser",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "blocker",
+            "type": "pubkey"
+          },
+          {
+            "name": "blocked",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Like",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sender",
+            "type": "pubkey"
+          },
+          {
+            "name": "receiver",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "is_match",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Match",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user1",
+            "type": "pubkey"
+          },
+          {
+            "name": "user2",
+            "type": "pubkey"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "messages",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Message"
+                }
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Message",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sender",
+            "type": "pubkey"
+          },
+          {
+            "name": "content",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserProfile",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "age",
+            "type": "u8"
+          },
+          {
+            "name": "bio",
+            "type": "string"
+          },
+          {
+            "name": "interests",
+            "type": {
+              "vec": "string"
+            }
+          },
+          {
+            "name": "location",
+            "type": "string"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "matches",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
