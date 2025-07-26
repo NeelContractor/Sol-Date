@@ -72,6 +72,16 @@ pub mod soldate {
 
     pub fn create_match(ctx: Context<CreateMatch>, user1: Pubkey, user2: Pubkey) -> Result<()> {
         let match_account = &mut ctx.accounts.match_account;
+        let user1_profile = &ctx.accounts.user1_profile;
+        let user2_profile = &ctx.accounts.user2_profile;
+
+        // Ensure both users exist and are active
+        require!(user1_profile.is_active, SolDateError::UserNotActive);
+        require!(user2_profile.is_active, SolDateError::UserNotActive);
+
+        // Verify the profiles match the provided users
+        require!(user1_profile.owner == user1, SolDateError::InvalidUser);
+        require!(user2_profile.owner == user2, SolDateError::InvalidUser);
 
         match_account.user1 = user1;
         match_account.user2 = user2;
@@ -84,9 +94,15 @@ pub mod soldate {
 
     pub fn send_message(ctx: Context<SendMessage>, content: String) -> Result<()> {
         let match_account = &mut ctx.accounts.match_account;
+        let sender = ctx.accounts.sender.key();
         
         require!(content.len() <= 200, SolDateError::MessageTooLong);
         require!(match_account.is_active, SolDateError::MatchNotActive);
+
+        require!(
+            sender == match_account.user1 || sender == match_account.user2,
+            SolDateError::Unauthorized
+        );
 
         let message = Message {
             sender: ctx.accounts.sender.key(),
@@ -161,6 +177,18 @@ pub struct SendLike<'info> {
 pub struct CreateMatch<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    #[account(
+        seeds = [b"profile", user1.as_ref()],
+        bump = user1_profile.bump
+    )]
+    pub user1_profile: Account<'info, UserProfile>,
+    
+    #[account(
+        seeds = [b"profile", user2.as_ref()],
+        bump = user2_profile.bump
+    )]
+    pub user2_profile: Account<'info, UserProfile>,
+    
     #[account(
         init,
         payer = authority,
@@ -278,5 +306,8 @@ pub enum SolDateError {
     MessageTooLong,
     #[msg("Match not active")]
     MatchNotActive,
-
+    #[msg("Invalid User")]
+    InvalidUser,
+    #[msg("User not active")]
+    UserNotActive,
 }

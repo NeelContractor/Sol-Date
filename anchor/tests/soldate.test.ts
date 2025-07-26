@@ -7,7 +7,6 @@ describe('Soldate', () => {
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env()
   anchor.setProvider(provider)
-  // const payer = provider.wallet as anchor.Wallet
 
   const program = anchor.workspace.Soldate as Program<Soldate>
 
@@ -130,7 +129,7 @@ describe('Soldate', () => {
     console.log("user1 profile updated: ", profile);
   })
 
-  it('send like', async () => {
+  it('send like from user1 to user2', async () => {
     const timestamp = Date.now();
     const [likePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("like"), user1.publicKey.toBuffer(), new anchor.BN(timestamp).toArrayLike(Buffer, 'le', 8)],
@@ -151,8 +150,7 @@ describe('Soldate', () => {
     console.log("user1 like: ", like);
   })
 
-  it('send like', async () => {
-
+  it('send like from user2 to user1', async () => {
     const timestamp = Date.now();
     const [likePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("like"), user2.publicKey.toBuffer(), new anchor.BN(timestamp).toArrayLike(Buffer, 'le', 8)],
@@ -183,38 +181,53 @@ describe('Soldate', () => {
       [Buffer.from("profile"), user2.publicKey.toBuffer()],
       program.programId
     );
-  
-    // Fetch the profiles using the correct PDAs
-    const user1profile = await program.account.userProfile.fetch(user1ProfilePda);
-    const user2profile = await program.account.userProfile.fetch(user2ProfilePda);
-  
 
     const [matchPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("match"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
       program.programId
     );
 
-    await program.methods
-      .createMatch(user1profile.owner, user2profile.owner)
-      .accountsStrict({
-        authority: user1.publicKey,
-        matchAccount: matchPda,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([user1])
-      .rpc({ skipPreflight: true })
+    console.log("Match PDA:", matchPda.toString());
+    console.log("User1 Profile PDA:", user1ProfilePda.toString());
+    console.log("User2 Profile PDA:", user2ProfilePda.toString());
 
-    const match = await program.account.match.fetch(matchPda);
-    console.log("match like: ", match);
+    try {
+      await program.methods
+        .createMatch(user1.publicKey, user2.publicKey)
+        .accountsStrict({
+          authority: user1.publicKey,
+          user1Profile: user1ProfilePda,
+          user2Profile: user2ProfilePda,
+          matchAccount: matchPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([user1])
+        .rpc({ skipPreflight: true })
+
+      const match = await program.account.match.fetch(matchPda);
+      console.log("created match: ", match);
+    } catch (error) {
+      console.log("Create match error:", error);
+      throw error;
+    }
   })
 
   it('send message', async () => {
-    const content = "Hey, there. i am new here. This is good platform. isn't it?"
+    const content = "Hey, there. I am new here. This is a good platform. Isn't it?"
 
     const [matchPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("match"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
       program.programId
     );
+
+    // Verify match exists before sending message
+    try {
+      const matchData = await program.account.match.fetch(matchPda);
+      console.log("Match exists:", matchData);
+    } catch (error) {
+      console.log("Match does not exist, this test will fail");
+      throw error;
+    }
 
     await program.methods
       .sendMessage(content)
@@ -226,8 +239,32 @@ describe('Soldate', () => {
       .signers([user1])
       .rpc({ skipPreflight: true })
 
-    const message = await program.account.match.fetch(matchPda);
-    console.log("message: ", message);
+    const matchData = await program.account.match.fetch(matchPda);
+    console.log("match with message: ", matchData);
+    console.log("messages: ", matchData.messages);
+  })
+
+  it('send message from user2', async () => {
+    const content = "Yes, it's amazing! I love the concept."
+
+    const [matchPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("match"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
+      program.programId
+    );
+
+    await program.methods
+      .sendMessage(content)
+      .accountsStrict({
+        sender: user2.publicKey,
+        matchAccount: matchPda,
+        systemProgram: SystemProgram.programId
+      })
+      .signers([user2])
+      .rpc({ skipPreflight: true })
+
+    const matchData = await program.account.match.fetch(matchPda);
+    console.log("match with both messages: ", matchData);
+    console.log("all messages: ", matchData.messages);
   })
 
   it('block user', async () => {

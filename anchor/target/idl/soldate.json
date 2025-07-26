@@ -82,6 +82,52 @@
           "signer": true
         },
         {
+          "name": "user1_profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "user1"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user2_profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "user2"
+              }
+            ]
+          }
+        },
+        {
           "name": "match_account",
           "writable": true,
           "pda": {
@@ -479,6 +525,16 @@
       "code": 6005,
       "name": "MatchNotActive",
       "msg": "Match not active"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidUser",
+      "msg": "Invalid User"
+    },
+    {
+      "code": 6007,
+      "name": "UserNotActive",
+      "msg": "User not active"
     }
   ],
   "types": [

@@ -88,6 +88,52 @@ export type Soldate = {
           "signer": true
         },
         {
+          "name": "user1Profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "user1"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user2Profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "user2"
+              }
+            ]
+          }
+        },
+        {
           "name": "matchAccount",
           "writable": true,
           "pda": {
@@ -485,6 +531,16 @@ export type Soldate = {
       "code": 6005,
       "name": "matchNotActive",
       "msg": "Match not active"
+    },
+    {
+      "code": 6006,
+      "name": "invalidUser",
+      "msg": "Invalid User"
+    },
+    {
+      "code": 6007,
+      "name": "userNotActive",
+      "msg": "User not active"
     }
   ],
   "types": [
