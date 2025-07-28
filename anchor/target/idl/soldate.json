@@ -82,47 +82,53 @@
           "signer": true
         },
         {
-          "name": "user1_profile",
+          "name": "like1",
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  102,
-                  105,
                   108,
+                  105,
+                  107,
                   101
                 ]
               },
               {
-                "kind": "arg",
-                "path": "user1"
+                "kind": "account",
+                "path": "like1.sender",
+                "account": "Like"
+              },
+              {
+                "kind": "account",
+                "path": "like1.receiver",
+                "account": "Like"
               }
             ]
           }
         },
         {
-          "name": "user2_profile",
+          "name": "like2",
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  102,
-                  105,
                   108,
+                  105,
+                  107,
                   101
                 ]
               },
               {
-                "kind": "arg",
-                "path": "user2"
+                "kind": "account",
+                "path": "like2.sender",
+                "account": "Like"
+              },
+              {
+                "kind": "account",
+                "path": "like2.receiver",
+                "account": "Like"
               }
             ]
           }
@@ -143,12 +149,14 @@
                 ]
               },
               {
-                "kind": "arg",
-                "path": "user1"
+                "kind": "account",
+                "path": "like1.sender.min(like1.receiver)",
+                "account": "Like"
               },
               {
-                "kind": "arg",
-                "path": "user2"
+                "kind": "account",
+                "path": "like1.sender.max(like1.receiver)",
+                "account": "Like"
               }
             ]
           }
@@ -158,16 +166,7 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": [
-        {
-          "name": "user1",
-          "type": "pubkey"
-        },
-        {
-          "name": "user2",
-          "type": "pubkey"
-        }
-      ]
+      "args": []
     },
     {
       "name": "create_profile",
@@ -260,6 +259,53 @@
           "signer": true
         },
         {
+          "name": "sender_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "sender"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "target_user"
+              }
+            ]
+          }
+        },
+        {
           "name": "like",
           "writable": true,
           "pda": {
@@ -279,7 +325,7 @@
               },
               {
                 "kind": "arg",
-                "path": "timestamp"
+                "path": "target_user"
               }
             ]
           }
@@ -290,10 +336,6 @@
         }
       ],
       "args": [
-        {
-          "name": "timestamp",
-          "type": "i64"
-        },
         {
           "name": "target_user",
           "type": "pubkey"
@@ -335,12 +377,46 @@
               },
               {
                 "kind": "account",
-                "path": "match_account.user1",
+                "path": "match_account.user1.min(match_account.user2)",
                 "account": "Match"
               },
               {
                 "kind": "account",
+                "path": "match_account.user2.max(match_account.user1)",
+                "account": "Match"
+              }
+            ]
+          }
+        },
+        {
+          "name": "message",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  115,
+                  115,
+                  97,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "match_account"
+              },
+              {
+                "kind": "account",
                 "path": "match_account.user2",
+                "account": "Match"
+              },
+              {
+                "kind": "account",
+                "path": "match_account.message_count",
                 "account": "Match"
               }
             ]
@@ -482,6 +558,19 @@
       ]
     },
     {
+      "name": "MessageAccount",
+      "discriminator": [
+        97,
+        144,
+        24,
+        58,
+        225,
+        40,
+        89,
+        223
+      ]
+    },
+    {
       "name": "UserProfile",
       "discriminator": [
         32,
@@ -535,6 +624,16 @@
       "code": 6007,
       "name": "UserNotActive",
       "msg": "User not active"
+    },
+    {
+      "code": 6008,
+      "name": "CannotLikeSelf",
+      "msg": "Cannot like self"
+    },
+    {
+      "code": 6009,
+      "name": "NotMutualLikes",
+      "msg": "Not mutual likes"
     }
   ],
   "types": [
@@ -580,7 +679,7 @@
             "type": "i64"
           },
           {
-            "name": "is_match",
+            "name": "is_mutual",
             "type": "bool"
           },
           {
@@ -612,11 +711,15 @@
             "type": "bool"
           },
           {
+            "name": "message_count",
+            "type": "u32"
+          },
+          {
             "name": "messages",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "Message"
+                  "name": "MessageRef"
                 }
               }
             }
@@ -629,7 +732,7 @@
       }
     },
     {
-      "name": "Message",
+      "name": "MessageAccount",
       "type": {
         "kind": "struct",
         "fields": [
@@ -640,6 +743,30 @@
           {
             "name": "content",
             "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MessageRef",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "message_pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "sender",
+            "type": "pubkey"
           },
           {
             "name": "timestamp",

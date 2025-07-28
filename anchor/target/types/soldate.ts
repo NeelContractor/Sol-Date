@@ -88,47 +88,53 @@ export type Soldate = {
           "signer": true
         },
         {
-          "name": "user1Profile",
+          "name": "like1",
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  102,
-                  105,
                   108,
+                  105,
+                  107,
                   101
                 ]
               },
               {
-                "kind": "arg",
-                "path": "user1"
+                "kind": "account",
+                "path": "like1.sender",
+                "account": "like"
+              },
+              {
+                "kind": "account",
+                "path": "like1.receiver",
+                "account": "like"
               }
             ]
           }
         },
         {
-          "name": "user2Profile",
+          "name": "like2",
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  102,
-                  105,
                   108,
+                  105,
+                  107,
                   101
                 ]
               },
               {
-                "kind": "arg",
-                "path": "user2"
+                "kind": "account",
+                "path": "like2.sender",
+                "account": "like"
+              },
+              {
+                "kind": "account",
+                "path": "like2.receiver",
+                "account": "like"
               }
             ]
           }
@@ -149,12 +155,14 @@ export type Soldate = {
                 ]
               },
               {
-                "kind": "arg",
-                "path": "user1"
+                "kind": "account",
+                "path": "like1.sender.min(like1.receiver)",
+                "account": "like"
               },
               {
-                "kind": "arg",
-                "path": "user2"
+                "kind": "account",
+                "path": "like1.sender.max(like1.receiver)",
+                "account": "like"
               }
             ]
           }
@@ -164,16 +172,7 @@ export type Soldate = {
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": [
-        {
-          "name": "user1",
-          "type": "pubkey"
-        },
-        {
-          "name": "user2",
-          "type": "pubkey"
-        }
-      ]
+      "args": []
     },
     {
       "name": "createProfile",
@@ -266,6 +265,53 @@ export type Soldate = {
           "signer": true
         },
         {
+          "name": "senderProfile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "sender"
+              }
+            ]
+          }
+        },
+        {
+          "name": "targetProfile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "targetUser"
+              }
+            ]
+          }
+        },
+        {
           "name": "like",
           "writable": true,
           "pda": {
@@ -285,7 +331,7 @@ export type Soldate = {
               },
               {
                 "kind": "arg",
-                "path": "timestamp"
+                "path": "targetUser"
               }
             ]
           }
@@ -296,10 +342,6 @@ export type Soldate = {
         }
       ],
       "args": [
-        {
-          "name": "timestamp",
-          "type": "i64"
-        },
         {
           "name": "targetUser",
           "type": "pubkey"
@@ -341,12 +383,46 @@ export type Soldate = {
               },
               {
                 "kind": "account",
-                "path": "match_account.user1",
+                "path": "match_account.user1.min(match_account.user2)",
                 "account": "match"
               },
               {
                 "kind": "account",
+                "path": "match_account.user2.max(match_account.user1)",
+                "account": "match"
+              }
+            ]
+          }
+        },
+        {
+          "name": "message",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  115,
+                  115,
+                  97,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "matchAccount"
+              },
+              {
+                "kind": "account",
                 "path": "match_account.user2",
+                "account": "match"
+              },
+              {
+                "kind": "account",
+                "path": "match_account.message_count",
                 "account": "match"
               }
             ]
@@ -488,6 +564,19 @@ export type Soldate = {
       ]
     },
     {
+      "name": "messageAccount",
+      "discriminator": [
+        97,
+        144,
+        24,
+        58,
+        225,
+        40,
+        89,
+        223
+      ]
+    },
+    {
       "name": "userProfile",
       "discriminator": [
         32,
@@ -541,6 +630,16 @@ export type Soldate = {
       "code": 6007,
       "name": "userNotActive",
       "msg": "User not active"
+    },
+    {
+      "code": 6008,
+      "name": "cannotLikeSelf",
+      "msg": "Cannot like self"
+    },
+    {
+      "code": 6009,
+      "name": "notMutualLikes",
+      "msg": "Not mutual likes"
     }
   ],
   "types": [
@@ -586,7 +685,7 @@ export type Soldate = {
             "type": "i64"
           },
           {
-            "name": "isMatch",
+            "name": "isMutual",
             "type": "bool"
           },
           {
@@ -618,11 +717,15 @@ export type Soldate = {
             "type": "bool"
           },
           {
+            "name": "messageCount",
+            "type": "u32"
+          },
+          {
             "name": "messages",
             "type": {
               "vec": {
                 "defined": {
-                  "name": "message"
+                  "name": "messageRef"
                 }
               }
             }
@@ -635,7 +738,7 @@ export type Soldate = {
       }
     },
     {
-      "name": "message",
+      "name": "messageAccount",
       "type": {
         "kind": "struct",
         "fields": [
@@ -646,6 +749,30 @@ export type Soldate = {
           {
             "name": "content",
             "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "messageRef",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "messagePda",
+            "type": "pubkey"
+          },
+          {
+            "name": "sender",
+            "type": "pubkey"
           },
           {
             "name": "timestamp",
