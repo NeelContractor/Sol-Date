@@ -198,6 +198,23 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
   const likeUserProfile = useMutation<string, Error, LikeUserProfileArgs>({
     mutationKey: ['profile', 'like', { cluster }],
     mutationFn: async({ likedUserPubkey, userPubkey }) => {
+      // Check if user has already liked this person
+      const [likePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("like"), userPubkey.toBuffer(), likedUserPubkey.toBuffer()],
+        program.programId
+      );
+
+      try {
+        // Check if like already exists
+        await program.account.like.fetch(likePda);
+        throw new Error('You have already liked this user');
+      } catch (error: any) {
+        // If fetch fails, like doesn't exist - continue with creation
+        if (error.error.errorCode.message === 'You have already liked this user') {
+          throw error;
+        }
+      }
+
       // Get both profile PDAs
       const [senderProfilePda] = PublicKey.findProgramAddressSync(
         [Buffer.from("profile"), userPubkey.toBuffer()],
@@ -209,12 +226,6 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
         program.programId
       );
 
-      // Create like PDA - sender likes target
-      const [likePda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("like"), userPubkey.toBuffer(), likedUserPubkey.toBuffer()],
-        program.programId
-      );
-
       // Check if reverse like exists (target likes sender)
       const [reverseLikePda] = PublicKey.findProgramAddressSync(
         [Buffer.from("like"), likedUserPubkey.toBuffer(), userPubkey.toBuffer()],
@@ -223,6 +234,7 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
 
       // Check if reverse like account exists
       let remainingAccounts = [];
+      let isMutualLike = false;
       try {
         await program.account.like.fetch(reverseLikePda);
         // If it exists, add it to remaining accounts
@@ -231,11 +243,12 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
           isWritable: false,
           isSigner: false,
         });
+        isMutualLike = true;
       } catch (error) {
         // Reverse like doesn't exist, that's okay
       }
 
-      return await program.methods
+      const signature = await program.methods
         .sendLike(likedUserPubkey)
         .accountsStrict({ 
           sender: userPubkey,
@@ -245,16 +258,36 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
           systemProgram: SystemProgram.programId
         })
         .remainingAccounts(remainingAccounts)
-        .rpc()
-      },
+        .rpc();
+
+      // After liking, check if this creates a mutual like and auto-create match
+      if (isMutualLike) {
+        // Mutual like detected, create match automatically
+        try {
+          await createMatch.mutateAsync({
+            userPubkey,
+            otherUserPubkey: likedUserPubkey
+          });
+        } catch (error) {
+          console.error('Failed to auto-create match:', error);
+        }
+      }
+
+      return signature;
+    },
     onSuccess: async (signature) => {
       transactionToast(signature)
       await likeAccounts.refetch()
-      await userProfileAccounts.refetch() // Refetch profiles to update matches
+      await userProfileAccounts.refetch()
+      await matchAccounts.refetch() // Also refetch matches in case one was created
     },
     onError: (error) => {
       console.error('Like error:', error)
-      toast.error('Failed to like user profile')
+      if (error.message === 'You have already liked this user') {
+        toast.error('You have already liked this user')
+      } else {
+        toast.error('Failed to like user profile')
+      }
     },
   })
 
@@ -291,7 +324,7 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
           systemProgram: SystemProgram.programId,
         })
         .rpc()
-      },
+    },
     onSuccess: async (signature) => {
       transactionToast(signature)
       await matchAccounts.refetch()
@@ -318,13 +351,13 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
       const matchData = await program.account.match.fetch(matchPda);
       const messageCount = matchData.messageCount;
 
-      // Create message PDA - using the corrected seeds from your program
+      // Create message PDA using the match PDA and message count
       const [messagePda] = PublicKey.findProgramAddressSync(
         [
           Buffer.from("message"), 
           matchPda.toBuffer(), 
-          toUserPubkey.toBuffer(), // match_account.user2 from your program
-          Buffer.from(new Uint8Array(new Uint32Array([messageCount]).buffer)) // message_count as little-endian bytes
+          toUserPubkey.toBuffer(),
+          Buffer.from(new Uint8Array(new Uint32Array([messageCount]).buffer))
         ],
         program.programId
       );
@@ -338,7 +371,7 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
           systemProgram: SystemProgram.programId
         })
         .rpc()
-      },
+    },
     onSuccess: async (signature) => {
       transactionToast(signature)
       await matchAccounts.refetch()
