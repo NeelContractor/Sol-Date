@@ -21,11 +21,11 @@ interface CreateUserProfileArgs {
 }
 
 interface UpdateUserProfileArgs {
-  name?: string, 
-  age?: number, 
-  bio?: string, 
-  interests?: string[], 
-  location?: string, 
+  name?: string | null, 
+  age?: number | null, 
+  bio?: string | null, 
+  interests?: string[] | null, 
+  location?: string | null, 
   userPubkey: PublicKey
 }
 

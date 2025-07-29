@@ -1,5 +1,5 @@
-import { DashboardFeature } from '@/components/dashboard/dashboard-feature'
+import SolDateDashboard from '@/components/soldate/SolDateDashboard'
 
 export default function Home() {
-  return <DashboardFeature />
+  return <SolDateDashboard />
 }
