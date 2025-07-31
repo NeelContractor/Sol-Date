@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { useSoldateProgram, useSoldateProgramAccount } from './soldate-data-access';
-import { Heart, MessageCircle, X, Settings, User, MapPin, Calendar, Edit, Send } from 'lucide-react';
+import { Heart, MessageCircle, X, Settings, User, MapPin, Edit, Send } from 'lucide-react';
 import { WalletButton } from '../solana/solana-provider';
 import BN from 'bn.js';
 import { Button } from '../ui/button';
@@ -71,7 +71,7 @@ type ActiveTab = 'discover' | 'matches' | 'profile' | "liked";
 export default function SolDateDashboard() {
   const { publicKey, connected } = useWallet();
   const [activeTab, setActiveTab] = useState<ActiveTab>('discover');
-  const [selectedProfile, setSelectedProfile] = useState<UserProfileData | null>(null);
+  // const [selectedProfile, setSelectedProfile] = useState<UserProfileData | null>(null);
   const [showCreateProfile, setShowCreateProfile] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [chatUser, setChatUser] = useState<UserMatch | null>(null);
@@ -876,7 +876,7 @@ export default function SolDateDashboard() {
                     {usersILiked.length === 0 ? (
                       <div className="text-center py-8">
                         <Heart size={48} className="text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-500">You haven't liked anyone yet</p>
+                        <p className="text-gray-500">You haven&apos;t liked anyone yet</p>
                       </div>
                     ) : (
                       <div className="space-y-4">

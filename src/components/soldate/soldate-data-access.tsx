@@ -2,7 +2,7 @@
 
 import { getSoldateProgram, getSoldateProgramId } from '@project/anchor'
 import { useConnection } from '@solana/wallet-adapter-react'
-import { Cluster, Keypair, PublicKey, SystemProgram } from '@solana/web3.js'
+import { Cluster, PublicKey, SystemProgram } from '@solana/web3.js'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useCluster } from '../cluster/cluster-data-access'
@@ -207,7 +207,7 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
         // Check if like already exists
         await program.account.like.fetch(likePda);
         throw new Error('You have already liked this user');
-      } catch (error: any) {
+      } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
         // If fetch fails, like doesn't exist - continue with creation
         if (error.message === 'You have already liked this user') {
           throw error;
@@ -232,7 +232,7 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
       );
 
       // Check if reverse like account exists
-      let remainingAccounts = [];
+      const remainingAccounts = [];
       try {
         await program.account.like.fetch(reverseLikePda);
         // If it exists, add it to remaining accounts
@@ -243,6 +243,7 @@ export function useSoldateProgramAccount({ account }: { account: PublicKey }) {
         });
       } catch (error) {
         // Reverse like doesn't exist, that's okay
+        console.log(error);
       }
 
       // Use the correct account names from the test
