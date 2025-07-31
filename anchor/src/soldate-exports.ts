@@ -21,7 +21,7 @@ export function getSoldateProgramId(cluster: Cluster) {
     case 'devnet':
     case 'testnet':
       // This is the program ID for the Counter program on devnet and testnet.
-      return new PublicKey('yeyAtDe631iSoW5CYpb7tiGjiAtmNGk8eWnw4R2ZbU7')
+      return new PublicKey('GYR5dzGaxxccGV9Nd6RZy3jb8CktP9LC1fpWgwFUWhPR')
     case 'mainnet-beta':
     default:
       return SOLDATE_PROGRAM_ID

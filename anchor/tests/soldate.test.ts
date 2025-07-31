@@ -2,7 +2,6 @@ import * as anchor from '@coral-xyz/anchor'
 import { Program } from '@coral-xyz/anchor'
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from '@solana/web3.js'
 import { Soldate } from '../target/types/soldate'
-import { match } from 'assert'
 
 describe('Soldate', () => {
   // Configure the client to use the local cluster.
@@ -105,19 +104,19 @@ describe('Soldate', () => {
   })
 
   it('update user1 profile', async () => {
-    const NAME = "FIRST_USER_GOAT";
-    const AGE = 22;
-    const BIO = "FIRST_USER_BIO_GOAT";
-    const INTERESTS = ["Good", "Kind"];
-    const LOCATION = "Gotham";
-
     const [profilePDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("profile"), user1.publicKey.toBuffer()],
       program.programId
     );
 
     await program.methods
-      .updateProfile(NAME, AGE, BIO, INTERESTS, LOCATION)
+      .updateProfile(
+        "FIRST_USER_GOAT",
+        22,
+        "FIRST_USER_BIO_GOAT",
+        ["Good", "Kind"],
+        "Gotham"
+      )
       .accountsStrict({
         user: user1.publicKey,
         profile: profilePDA,
@@ -161,13 +160,16 @@ describe('Soldate', () => {
 
       const like = await program.account.like.fetch(likePda);
       console.log("user1 like: ", like);
+
+      const user1Profile = await program.account.userProfile.fetch(user1ProfilePda);
+      console.log("user1 matches after first like: ", user1Profile.matches);
     } catch (error) {
       console.log("Send like error:", error);
       throw error;
     }
   })
 
-  it('send like from user2 to user1 (creates mutual like)', async () => {
+  it('send like from user2 to user1 (creates mutual match)', async () => {
     const [user1ProfilePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("profile"), user1.publicKey.toBuffer()],
       program.programId
@@ -183,7 +185,6 @@ describe('Soldate', () => {
       program.programId
     );
 
-    // This is the reverse like (user1 -> user2) that already exists
     const [reverseLikePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("like"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
       program.programId
@@ -212,8 +213,9 @@ describe('Soldate', () => {
       const like = await program.account.like.fetch(likePda);
       console.log("user2 like (mutual): ", like);
 
-      // Check user2's profile to see if user1 was added to matches
+      const user1Profile = await program.account.userProfile.fetch(user1ProfilePda);
       const user2Profile = await program.account.userProfile.fetch(user2ProfilePda);
+      console.log("user1 profile matches: ", user1Profile.matches);
       console.log("user2 profile matches: ", user2Profile.matches);
     } catch (error) {
       console.log("Send mutual like error:", error);
@@ -221,170 +223,218 @@ describe('Soldate', () => {
     }
   })
 
-  it('create match from mutual likes', async () => {
-    // Get the like PDAs
-    const [like1Pda] = PublicKey.findProgramAddressSync(
+  it('send message from user1 to user2', async () => {
+    // Use a much shorter message to avoid memory issues
+    const content = "Hey there! Nice to meet you."
+    const messageId = Math.floor(Date.now() / 1000);
+
+    const [user1ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user1.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [user2ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user2.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [user1LikePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("like"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
       program.programId
     );
 
-    const [like2Pda] = PublicKey.findProgramAddressSync(
+    const [user2LikePda] = PublicKey.findProgramAddressSync(
       [Buffer.from("like"), user2.publicKey.toBuffer(), user1.publicKey.toBuffer()],
       program.programId
     );
 
-    // Create match PDA with min/max ordering
-    const user1Key = user1.publicKey;
-    const user2Key = user2.publicKey;
-    const minKey = user1Key.toBase58() < user2Key.toBase58() ? user1Key : user2Key;
-    const maxKey = user1Key.toBase58() < user2Key.toBase58() ? user2Key : user1Key;
+    const messageIdBuffer = Buffer.allocUnsafe(8);
+    messageIdBuffer.writeBigUInt64LE(BigInt(messageId), 0);
 
-    const [matchPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("match"), minKey.toBuffer(), maxKey.toBuffer()],
-      program.programId
-    );
-
-    console.log("Match PDA:", matchPda.toString());
-    console.log("Like1 PDA:", like1Pda.toString());
-    console.log("Like2 PDA:", like2Pda.toString());
-
-    try {
-      await program.methods
-        .createMatch()
-        .accountsStrict({
-          authority: user1.publicKey,
-          like1: like1Pda,
-          like2: like2Pda,
-          matchAccount: matchPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user1])
-        .rpc()
-
-      const match = await program.account.match.fetch(matchPda);
-      console.log("created match: ", match);
-    } catch (error) {
-      console.log("Create match error:", error);
-      throw error;
-    }
-  })
-
-  it('send message', async () => {
-    const content = "Hey, there. I am new here. This is a good platform. Isn't it?"
-  
-    // Use min/max ordering for match PDA - SAME as create_match
-    const user1Key = user1.publicKey;
-    const user2Key = user2.publicKey;
-    const minKey = user1Key.toBase58() < user2Key.toBase58() ? user1Key : user2Key;
-    const maxKey = user1Key.toBase58() < user2Key.toBase58() ? user2Key : user1Key;
-  
-    const [matchPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("match"), minKey.toBuffer(), maxKey.toBuffer()],
-      program.programId
-    );
-  
-    // Verify match exists before sending message
-    let matchData;
-    try {
-      matchData = await program.account.match.fetch(matchPda);
-      console.log("Match exists:", matchData);
-    } catch (error) {
-      console.log("Match does not exist, this test will fail");
-      throw error;
-    }
-  
-    let messageCount = matchData.messageCount;
-    
-    // FIXED: Use the correct seeds that match your program
     const [messagePda] = PublicKey.findProgramAddressSync(
       [
-        Buffer.from("message"), 
-        matchPda.toBuffer(), 
-        user2.publicKey.toBuffer(), // match_account.user2
-        Buffer.from(new Uint8Array(new Uint32Array([messageCount]).buffer)) // message_count as little-endian bytes
+        Buffer.from("message"),
+        user1.publicKey.toBuffer(),
+        user2.publicKey.toBuffer(),
+        messageIdBuffer
       ],
       program.programId
-    )
-  
+    );
+
     try {
       await program.methods
-        .sendMessage(content)
+        .sendMessage(new anchor.BN(messageId), content)
         .accountsStrict({
           sender: user1.publicKey,
-          matchAccount: matchPda,
+          senderProfile: user1ProfilePda,
+          receiverProfile: user2ProfilePda,
           message: messagePda,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
+        .remainingAccounts([
+          {
+            pubkey: user1LikePda,
+            isWritable: false,
+            isSigner: false,
+          },
+          {
+            pubkey: user2LikePda,
+            isWritable: false,
+            isSigner: false,
+          }
+        ])
         .signers([user1])
         .rpc()
-  
-        const updatedMatchData = await program.account.match.fetch(matchPda);
-        console.log("match after message: ", updatedMatchData);
-        console.log("message count: ", updatedMatchData.messageCount);
-        console.log("message references: ", updatedMatchData.messages);
-  
-        // Fetch the actual message
-        const messageData = await program.account.messageAccount.fetch(messagePda);
-        console.log("message data: ", messageData);
+
+      const messageData = await program.account.messageAccount.fetch(messagePda);
+      console.log("message data from user1: ", messageData);
     } catch (error) {
       console.log("Send message error:", error);
       throw error;
     }
   })
 
-  it('send message from user2', async () => {
-    const content = "Yes, it's amazing! I love the concept."
-  
-    // Use min/max ordering for match PDA - SAME as create_match
-    const user1Key = user1.publicKey;
-    const user2Key = user2.publicKey;
-    const minKey = user1Key.toBase58() < user2Key.toBase58() ? user1Key : user2Key;
-    const maxKey = user1Key.toBase58() < user2Key.toBase58() ? user2Key : user1Key;
-  
-    const [matchPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("match"), minKey.toBuffer(), maxKey.toBuffer()],
+  it('send message from user2 to user1', async () => {
+    const content = "Great to meet you too!"
+    const messageId = Math.floor(Date.now() / 1000) + 1;
+
+    const [user1ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user1.publicKey.toBuffer()],
       program.programId
     );
-  
-    const matchData = await program.account.match.fetch(matchPda);
-    
-    // Create message PDA for the second message
-    let messageCount = matchData.messageCount;
-    
-    // FIXED: Use the correct seeds that match your program
+
+    const [user2ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user2.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [user1LikePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("like"), user1.publicKey.toBuffer(), user2.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [user2LikePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("like"), user2.publicKey.toBuffer(), user1.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const messageIdBuffer = Buffer.allocUnsafe(8);
+    messageIdBuffer.writeBigUInt64LE(BigInt(messageId), 0);
+
     const [messagePda] = PublicKey.findProgramAddressSync(
       [
-        Buffer.from("message"), 
-        matchPda.toBuffer(), 
-        user2.publicKey.toBuffer(), // match_account.user2
-        Buffer.from(new Uint8Array(new Uint32Array([messageCount]).buffer)) // message_count as little-endian bytes
+        Buffer.from("message"),
+        user2.publicKey.toBuffer(),
+        user1.publicKey.toBuffer(),
+        messageIdBuffer
       ],
       program.programId
     );
-  
+
     try {
       await program.methods
-        .sendMessage(content)
+        .sendMessage(new anchor.BN(messageId), content)
         .accountsStrict({
           sender: user2.publicKey,
-          matchAccount: matchPda,
+          senderProfile: user2ProfilePda,
+          receiverProfile: user1ProfilePda,
           message: messagePda,
-          systemProgram: SystemProgram.programId
+          systemProgram: SystemProgram.programId,
         })
+        .remainingAccounts([
+          {
+            pubkey: user1LikePda,
+            isWritable: false,
+            isSigner: false,
+          },
+          {
+            pubkey: user2LikePda,
+            isWritable: false,
+            isSigner: false,
+          }
+        ])
         .signers([user2])
         .rpc()
-  
-        const updatedMatchData = await program.account.match.fetch(matchPda);
-        console.log("match after both messages: ", updatedMatchData);
-        console.log("total message count: ", updatedMatchData.messageCount);
-        console.log("all message references: ", updatedMatchData.messages);
-  
-        // Fetch the second message
-        const messageData = await program.account.messageAccount.fetch(messagePda);
-        console.log("second message data: ", messageData);
-  
+
+      const messageData = await program.account.messageAccount.fetch(messagePda);
+      console.log("message data from user2: ", messageData);
     } catch (error) {
       console.log("Send message from user2 error:", error);
+      throw error;
+    }
+  })
+
+  it('test messaging with only one-way like', async () => {
+    const content = "Hello from user3!"
+
+    const [user1ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user1.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [user3ProfilePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("profile"), user3.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const [user3LikesPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("like"), user3.publicKey.toBuffer(), user1.publicKey.toBuffer()],
+      program.programId
+    );
+
+    await program.methods
+      .sendLike(user1.publicKey)
+      .accountsStrict({
+        sender: user3.publicKey,
+        senderProfile: user3ProfilePda,
+        targetProfile: user1ProfilePda,
+        like: user3LikesPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([user3])
+      .rpc()
+
+    console.log("user3 liked user1");
+
+    const messageId = Math.floor(Date.now() / 1000) + 2;
+    
+    const messageIdBuffer = Buffer.allocUnsafe(8);
+    messageIdBuffer.writeBigUInt64LE(BigInt(messageId), 0);
+    
+    const [messagePda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("message"),
+        user3.publicKey.toBuffer(),
+        user1.publicKey.toBuffer(),
+        messageIdBuffer
+      ],
+      program.programId
+    );
+
+    try {
+      await program.methods
+        .sendMessage(new anchor.BN(messageId), content)
+        .accountsStrict({
+          sender: user3.publicKey,
+          senderProfile: user3ProfilePda,
+          receiverProfile: user1ProfilePda,
+          message: messagePda,
+          systemProgram: SystemProgram.programId,
+        })
+        .remainingAccounts([
+          {
+            pubkey: user3LikesPda,
+            isWritable: false,
+            isSigner: false,
+          }
+        ])
+        .signers([user3])
+        .rpc()
+
+      const messageData = await program.account.messageAccount.fetch(messagePda);
+      console.log("message from user3 with one-way like: ", messageData);
+    } catch (error) {
+      console.log("One-way like message error:", error);
       throw error;
     }
   })

@@ -1,5 +1,5 @@
 {
-  "address": "yeyAtDe631iSoW5CYpb7tiGjiAtmNGk8eWnw4R2ZbU7",
+  "address": "GYR5dzGaxxccGV9Nd6RZy3jb8CktP9LC1fpWgwFUWhPR",
   "metadata": {
     "name": "soldate",
     "version": "0.1.0",
@@ -62,111 +62,6 @@
           "type": "pubkey"
         }
       ]
-    },
-    {
-      "name": "create_match",
-      "discriminator": [
-        107,
-        2,
-        184,
-        145,
-        70,
-        142,
-        17,
-        165
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "like1",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  107,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "like1.sender",
-                "account": "Like"
-              },
-              {
-                "kind": "account",
-                "path": "like1.receiver",
-                "account": "Like"
-              }
-            ]
-          }
-        },
-        {
-          "name": "like2",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  105,
-                  107,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "like2.sender",
-                "account": "Like"
-              },
-              {
-                "kind": "account",
-                "path": "like2.receiver",
-                "account": "Like"
-              }
-            ]
-          }
-        },
-        {
-          "name": "match_account",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109,
-                  97,
-                  116,
-                  99,
-                  104
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "like1.sender.min(like1.receiver)",
-                "account": "Like"
-              },
-              {
-                "kind": "account",
-                "path": "like1.sender.max(like1.receiver)",
-                "account": "Like"
-              }
-            ]
-          }
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
     },
     {
       "name": "create_profile",
@@ -284,6 +179,7 @@
         },
         {
           "name": "target_profile",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -361,29 +257,48 @@
           "signer": true
         },
         {
-          "name": "match_account",
-          "writable": true,
+          "name": "sender_profile",
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  109,
-                  97,
-                  116,
-                  99,
-                  104
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
                 ]
               },
               {
                 "kind": "account",
-                "path": "match_account.user1.min(match_account.user2)",
-                "account": "Match"
+                "path": "sender"
+              }
+            ]
+          }
+        },
+        {
+          "name": "receiver_profile",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  102,
+                  105,
+                  108,
+                  101
+                ]
               },
               {
                 "kind": "account",
-                "path": "match_account.user2.max(match_account.user1)",
-                "account": "Match"
+                "path": "receiver_profile.owner",
+                "account": "UserProfile"
               }
             ]
           }
@@ -407,17 +322,16 @@
               },
               {
                 "kind": "account",
-                "path": "match_account"
+                "path": "sender"
               },
               {
                 "kind": "account",
-                "path": "match_account.user2",
-                "account": "Match"
+                "path": "receiver_profile.owner",
+                "account": "UserProfile"
               },
               {
-                "kind": "account",
-                "path": "match_account.message_count",
-                "account": "Match"
+                "kind": "arg",
+                "path": "message_id"
               }
             ]
           }
@@ -428,6 +342,10 @@
         }
       ],
       "args": [
+        {
+          "name": "_message_id",
+          "type": "u64"
+        },
         {
           "name": "content",
           "type": "string"
@@ -545,19 +463,6 @@
       ]
     },
     {
-      "name": "Match",
-      "discriminator": [
-        236,
-        63,
-        169,
-        38,
-        15,
-        56,
-        196,
-        162
-      ]
-    },
-    {
       "name": "MessageAccount",
       "discriminator": [
         97,
@@ -632,8 +537,18 @@
     },
     {
       "code": 6009,
+      "name": "CannotMessageSelf",
+      "msg": "Cannot message self"
+    },
+    {
+      "code": 6010,
       "name": "NotMutualLikes",
       "msg": "Not mutual likes"
+    },
+    {
+      "code": 6011,
+      "name": "NoLikeExists",
+      "msg": "No like exists between users"
     }
   ],
   "types": [
@@ -690,54 +605,16 @@
       }
     },
     {
-      "name": "Match",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user1",
-            "type": "pubkey"
-          },
-          {
-            "name": "user2",
-            "type": "pubkey"
-          },
-          {
-            "name": "created_at",
-            "type": "i64"
-          },
-          {
-            "name": "is_active",
-            "type": "bool"
-          },
-          {
-            "name": "message_count",
-            "type": "u32"
-          },
-          {
-            "name": "messages",
-            "type": {
-              "vec": {
-                "defined": {
-                  "name": "MessageRef"
-                }
-              }
-            }
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
       "name": "MessageAccount",
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "sender",
+            "type": "pubkey"
+          },
+          {
+            "name": "receiver",
             "type": "pubkey"
           },
           {
@@ -751,26 +628,6 @@
           {
             "name": "bump",
             "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "MessageRef",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "message_pda",
-            "type": "pubkey"
-          },
-          {
-            "name": "sender",
-            "type": "pubkey"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
           }
         ]
       }

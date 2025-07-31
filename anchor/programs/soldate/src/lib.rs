@@ -3,7 +3,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("yeyAtDe631iSoW5CYpb7tiGjiAtmNGk8eWnw4R2ZbU7");
+declare_id!("GYR5dzGaxxccGV9Nd6RZy3jb8CktP9LC1fpWgwFUWhPR");
 
 #[program]
 pub mod soldate {
@@ -62,84 +62,88 @@ pub mod soldate {
     pub fn send_like(ctx: Context<SendLike>, target_user: Pubkey) -> Result<()> {
         let like = &mut ctx.accounts.like;
         let sender_profile = &mut ctx.accounts.sender_profile;
-        let target_profile = &ctx.accounts.target_profile;
+        let target_profile = &mut ctx.accounts.target_profile;
 
         require!(sender_profile.is_active, SolDateError::UserNotActive);
         require!(target_profile.is_active, SolDateError::UserNotActive);
-
         require!(ctx.accounts.sender.key() != target_user, SolDateError::CannotLikeSelf);
 
         let timestamp = Clock::get()?.unix_timestamp;
+        let sender_key = ctx.accounts.sender.key();
 
-        like.sender = ctx.accounts.sender.key();
+        like.sender = sender_key;
         like.receiver = target_user;
         like.timestamp = timestamp;
-        like.is_mutual = false;
         like.bump = ctx.bumps.like;
 
-        let bind = ctx.accounts.sender.key();
+        // Check if target user already liked sender (reverse like exists)
         let reverse_like_seeds = [
             b"like",
             target_user.as_ref(),
-            bind.as_ref(),
+            sender_key.as_ref(),
         ];
-        let (reverse_like_pda, _bump) = Pubkey::find_program_address(&reverse_like_seeds, ctx.program_id);
-        let reverse_like_account_info = ctx.remaining_accounts.get(0);
-    
-        if let Some(reverse_like_info) = reverse_like_account_info {
+        let (reverse_like_pda, _) = Pubkey::find_program_address(&reverse_like_seeds, ctx.program_id);
+        
+        let mut is_mutual = false;
+        if let Some(reverse_like_info) = ctx.remaining_accounts.get(0) {
             if reverse_like_info.key() == reverse_like_pda && !reverse_like_info.data_is_empty() {
-                like.is_mutual = true;
-                sender_profile.matches.push(target_user);
+                is_mutual = true;
+                
+                // Add to both users' matches
+                if !sender_profile.matches.contains(&target_user) {
+                    sender_profile.matches.push(target_user);
+                }
+                if !target_profile.matches.contains(&sender_key) {
+                    target_profile.matches.push(sender_key);
+                }
             }
         }
+
+        like.is_mutual = is_mutual;
         Ok(())
     }
 
-    pub fn create_match(ctx: Context<CreateMatch>) -> Result<()> {
-        let match_account = &mut ctx.accounts.match_account;
-        let like1 = &ctx.accounts.like1;
-        let like2 = &ctx.accounts.like2;
-
-        require!(like1.sender == like2.receiver && like1.receiver == like2.sender, SolDateError::NotMutualLikes);
-        let user1 = like1.sender;
-        let user2 = like1.receiver;
-
-        match_account.user1 = user1;
-        match_account.user2 = user2;
-        match_account.created_at = Clock::get()?.unix_timestamp;
-        match_account.is_active = true;
-        match_account.message_count = 0;
-        match_account.bump = ctx.bumps.match_account;
-        Ok(())
-    }
-
-    pub fn send_message(ctx: Context<SendMessage>, content: String) -> Result<()> {
-        let match_account = &mut ctx.accounts.match_account;
-        let message_account = &mut ctx.accounts.message;
-        let sender = ctx.accounts.sender.key();
+    // Fixed messaging function with better memory management
+    pub fn send_message(ctx: Context<SendMessage>, _message_id: u64, content: String) -> Result<()> {
+        // Validate content length early to prevent large allocations
+        require!(content.len() <= 80, SolDateError::MessageTooLong); // Reduced even further
+        require!(ctx.accounts.sender_profile.is_active, SolDateError::UserNotActive);
+        require!(ctx.accounts.receiver_profile.is_active, SolDateError::UserNotActive);
         
-        require!(content.len() <= 200, SolDateError::MessageTooLong);
-        require!(match_account.is_active, SolDateError::MatchNotActive);
+        let sender = ctx.accounts.sender.key();
+        let receiver = ctx.accounts.receiver_profile.owner;
+        require!(sender != receiver, SolDateError::CannotMessageSelf);
 
-        // require!(
-        //     sender == match_account.user1 || sender == match_account.user2,
-        //     SolDateError::Unauthorized
-        // );
+        // Check permissions before any allocations
+        let sender_like_seeds = [b"like", sender.as_ref(), receiver.as_ref()];
+        let receiver_like_seeds = [b"like", receiver.as_ref(), sender.as_ref()];
+        
+        let (sender_like_pda, _) = Pubkey::find_program_address(&sender_like_seeds, ctx.program_id);
+        let (receiver_like_pda, _) = Pubkey::find_program_address(&receiver_like_seeds, ctx.program_id);
+        
+        let mut can_message = false;
+        
+        // Check if either like exists in remaining accounts
+        for account_info in ctx.remaining_accounts.iter() {
+            if (account_info.key() == sender_like_pda || account_info.key() == receiver_like_pda) 
+                && !account_info.data_is_empty() {
+                can_message = true;
+                break;
+            }
+        }
+        
+        require!(can_message, SolDateError::NoLikeExists);
+
+        // Only allocate the message account after all validations pass
+        let message_account = &mut ctx.accounts.message;
         let timestamp = Clock::get()?.unix_timestamp;
 
         message_account.sender = sender;
+        message_account.receiver = receiver;
         message_account.content = content;
         message_account.timestamp = timestamp;
         message_account.bump = ctx.bumps.message;
 
-        let message_ref = MessageRef {
-            message_pda: ctx.accounts.message.key(),
-            sender,
-            timestamp
-        };
-
-        match_account.messages.push(message_ref);
-        match_account.message_count += 1;
         Ok(())
     }
 
@@ -198,6 +202,7 @@ pub struct SendLike<'info> {
     pub sender_profile: Account<'info, UserProfile>,
 
     #[account(
+        mut,
         seeds = [b"profile", target_user.key().as_ref()],
         bump = target_profile.bump
     )]
@@ -216,48 +221,33 @@ pub struct SendLike<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CreateMatch<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(
-        seeds = [b"like", like1.sender.as_ref(), like1.receiver.as_ref()],
-        bump = like1.bump
-    )]
-    pub like1: Account<'info, Like>,
-    
-    #[account(
-        seeds = [b"like", like2.sender.as_ref(), like2.receiver.as_ref()],
-        bump = like2.bump
-    )]
-    pub like2: Account<'info, Like>,
-
-    #[account(
-        init,
-        payer = authority,
-        space = 8 + Match::INIT_SPACE,
-        seeds = [b"match", like1.sender.min(like1.receiver).as_ref(), like1.sender.max(like1.receiver).as_ref()],
-        bump
-    )]
-    pub match_account: Account<'info, Match>,
-
-    pub system_program: Program<'info, System>
-}
-
-#[derive(Accounts)]
+#[instruction(message_id: u64)]
 pub struct SendMessage<'info> {
     #[account(mut)]
     pub sender: Signer<'info>,
+    
     #[account(
-        mut,
-        seeds = [b"match", match_account.user1.min(match_account.user2).as_ref(), match_account.user2.max(match_account.user1).as_ref()],
-        bump = match_account.bump
+        seeds = [b"profile", sender.key().as_ref()],
+        bump = sender_profile.bump
     )]
-    pub match_account: Account<'info, Match>,
+    pub sender_profile: Account<'info, UserProfile>,
+    
+    #[account(
+        seeds = [b"profile", receiver_profile.owner.as_ref()],
+        bump = receiver_profile.bump
+    )]
+    pub receiver_profile: Account<'info, UserProfile>,
+
     #[account(
         init,
         payer = sender,
-        space = 8 + Message::INIT_SPACE,
-        seeds = [b"message", match_account.key().as_ref(), match_account.user2.as_ref(), match_account.message_count.to_le_bytes().as_ref()],
+        space = 8 + MessageAccount::INIT_SPACE,
+        seeds = [
+            b"message", 
+            sender.key().as_ref(),
+            receiver_profile.owner.as_ref(),
+            message_id.to_le_bytes().as_ref()
+        ],
         bump
     )]
     pub message: Account<'info, MessageAccount>,
@@ -310,41 +300,16 @@ pub struct Like {
     pub bump: u8
 }
 
-#[account]
-#[derive(InitSpace)]
-pub struct Match {
-    pub user1: Pubkey,
-    pub user2: Pubkey,
-    pub created_at: i64,
-    pub is_active: bool,
-    pub message_count: u32,
-    #[max_len(32)]
-    pub messages: Vec<MessageRef>,
-    pub bump: u8
-}
-
+// Simple message account with String (reduced size)
 #[account]
 #[derive(InitSpace)]
 pub struct MessageAccount {
     pub sender: Pubkey,
-    #[max_len(200)]
+    pub receiver: Pubkey,
+    #[max_len(80)] // Reduced from 200 to 80 for better memory management
     pub content: String,
     pub timestamp: i64,
     pub bump: u8
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct MessageRef {
-    pub message_pda: Pubkey,
-    pub sender: Pubkey,
-    pub timestamp: i64,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
-pub struct Message {
-    #[max_len(200)]
-    pub content: String,
-    pub timestamp: i64,
 }
 
 #[account]
@@ -376,6 +341,10 @@ pub enum SolDateError {
     UserNotActive,
     #[msg("Cannot like self")]
     CannotLikeSelf,
+    #[msg("Cannot message self")]
+    CannotMessageSelf,
     #[msg("Not mutual likes")]
     NotMutualLikes,
+    #[msg("No like exists between users")]
+    NoLikeExists,
 }

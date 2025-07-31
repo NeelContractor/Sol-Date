@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-soldate = "yeyAtDe631iSoW5CYpb7tiGjiAtmNGk8eWnw4R2ZbU7"
+soldate = "GYR5dzGaxxccGV9Nd6RZy3jb8CktP9LC1fpWgwFUWhPR"
 
 [registry]
 url = "https://api.apr.dev"
